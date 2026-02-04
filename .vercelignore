@@ -1,0 +1,10 @@
+# Ignore local dev files
+server.js
+backend
+uploads
+outputs
+package-lock.json
+
+# Dependencies
+node_modules
+.env
