@@ -63,11 +63,22 @@ uploadBtn.addEventListener('click', async () => {
             body: formData
         });
 
-        const data = await response.json();
-
         if (response.ok) {
-            showSuccess(data);
+            // Get stats from headers
+            const stats = {
+                totalRows: response.headers.get('X-Stats-TotalRows') || 0,
+                valid: response.headers.get('X-Stats-Valid') || 0,
+                rejected: response.headers.get('X-Stats-Rejected') || 0,
+                chunks: response.headers.get('X-Stats-Chunks') || 0
+            };
+            
+            // Get the ZIP file as blob
+            const blob = await response.blob();
+            const downloadUrl = URL.createObjectURL(blob);
+            
+            showSuccess({ stats, downloadUrl, isBlob: true });
         } else {
+            const data = await response.json();
             showError(data.error || 'Upload failed');
         }
 
@@ -83,6 +94,9 @@ uploadBtn.addEventListener('click', async () => {
 function showSuccess(data) {
     responseArea.style.display = 'block';
     
+    // Determine download attribute for blob URLs
+    const downloadAttr = data.isBlob ? ' download="processed_leads.zip"' : '';
+    
     // Create Stats HTML
     const statsHtml = `
         <div class="stats-card">
@@ -91,7 +105,7 @@ function showSuccess(data) {
             <div class="stat-row"><span>Rejected / Duplicates:</span> <span class="stat-val" style="color:#ef4444">${data.stats.rejected}</span></div>
             <div class="stat-row"><span>Files Generated:</span> <span class="stat-val">${data.stats.chunks}</span></div>
         </div>
-        <a href="${data.downloadUrl}" class="btn" style="display:block; text-align:center; margin-top:1rem; text-decoration:none;">Download ZIP</a>
+        <a href="${data.downloadUrl}"${downloadAttr} class="btn" style="display:block; text-align:center; margin-top:1rem; text-decoration:none;">Download ZIP</a>
     `;
 
     responseArea.innerHTML = `<div class="success-msg">Processing Complete!</div>` + statsHtml;
