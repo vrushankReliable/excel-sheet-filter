@@ -3,10 +3,6 @@
  * GET /api/ - Returns API status
  */
 
-const app = require("../server");
-
-module.exports = app;
-
 module.exports = (req, res) => {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
