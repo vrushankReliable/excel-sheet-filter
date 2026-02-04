@@ -5,7 +5,6 @@
 
 const xlsx = require('xlsx');
 const archiver = require('archiver');
-const Busboy = require('busboy');
 
 /**
  * STRICT Indian Mobile Number Normalization
@@ -112,7 +111,6 @@ const processExcelBuffer = (buffer, batchSize = 1000) => {
         const newWs = xlsx.utils.json_to_sheet(chunk);
         xlsx.utils.book_append_sheet(newWb, newWs, 'Leads');
         
-        // Write to buffer instead of file
         const buffer = xlsx.write(newWb, { type: 'buffer', bookType: 'xlsx' });
         chunks.push({
             name: `output_${Math.floor(i / BATCH_SIZE) + 1}.xlsx`,
@@ -144,12 +142,10 @@ const createZipBuffer = (chunks, rejected) => {
         archive.on('end', () => resolve(Buffer.concat(buffers)));
         archive.on('error', (err) => reject(err));
 
-        // Add Excel files
         chunks.forEach(chunk => {
             archive.append(chunk.buffer, { name: chunk.name });
         });
 
-        // Add rejected.json
         if (rejected && rejected.length > 0) {
             archive.append(JSON.stringify(rejected, null, 2), { name: 'rejected.json' });
         }
@@ -159,45 +155,42 @@ const createZipBuffer = (chunks, rejected) => {
 };
 
 /**
- * Parse multipart form data using busboy
+ * Parse multipart manually (no external dependencies)
  */
-const parseMultipart = (req) => {
-    return new Promise((resolve, reject) => {
-        const busboy = Busboy({ headers: req.headers });
-        
-        let fileBuffer = null;
-        let batchSize = 1000;
-        const fileChunks = [];
+const parseMultipartBody = (body, boundary) => {
+    const parts = body.split(`--${boundary}`);
+    let fileBuffer = null;
+    let batchSize = 1000;
 
-        busboy.on('file', (fieldname, file, info) => {
-            file.on('data', (data) => {
-                fileChunks.push(data);
-            });
-            file.on('end', () => {
-                fileBuffer = Buffer.concat(fileChunks);
-            });
-        });
-
-        busboy.on('field', (fieldname, val) => {
-            if (fieldname === 'batchSize') {
-                const parsed = parseInt(val, 10);
+    for (const part of parts) {
+        if (part.includes('name="file"')) {
+            const headerEnd = part.indexOf('\r\n\r\n');
+            if (headerEnd !== -1) {
+                let content = part.slice(headerEnd + 4);
+                // Remove trailing boundary markers
+                const endIndex = content.lastIndexOf('\r\n');
+                if (endIndex !== -1) {
+                    content = content.slice(0, endIndex);
+                }
+                fileBuffer = Buffer.from(content, 'binary');
+            }
+        } else if (part.includes('name="batchSize"')) {
+            const headerEnd = part.indexOf('\r\n\r\n');
+            if (headerEnd !== -1) {
+                let content = part.slice(headerEnd + 4).trim();
+                const endIndex = content.indexOf('\r\n');
+                if (endIndex !== -1) {
+                    content = content.slice(0, endIndex);
+                }
+                const parsed = parseInt(content, 10);
                 if (!isNaN(parsed)) {
                     batchSize = parsed;
                 }
             }
-        });
+        }
+    }
 
-        busboy.on('finish', () => {
-            if (!fileBuffer || fileBuffer.length === 0) {
-                return reject(new Error('No file uploaded'));
-            }
-            resolve({ fileBuffer, batchSize });
-        });
-
-        busboy.on('error', reject);
-
-        req.pipe(busboy);
-    });
+    return { fileBuffer, batchSize };
 };
 
 module.exports = async (req, res) => {
@@ -216,8 +209,31 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { fileBuffer, batchSize } = await parseMultipart(req);
+        // Get boundary from content-type
+        const contentType = req.headers['content-type'] || '';
+        const boundaryMatch = contentType.match(/boundary=(.+)$/);
         
+        if (!boundaryMatch) {
+            return res.status(400).json({ error: 'Invalid content type - missing boundary' });
+        }
+
+        const boundary = boundaryMatch[1];
+        
+        // Read body
+        const chunks = [];
+        for await (const chunk of req) {
+            chunks.push(chunk);
+        }
+        const bodyBuffer = Buffer.concat(chunks);
+        const bodyString = bodyBuffer.toString('binary');
+
+        // Parse multipart
+        const { fileBuffer, batchSize } = parseMultipartBody(bodyString, boundary);
+        
+        if (!fileBuffer || fileBuffer.length === 0) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
         // Process the Excel file
         const result = processExcelBuffer(fileBuffer, batchSize);
         
@@ -250,7 +266,7 @@ module.exports = async (req, res) => {
     }
 };
 
-// Vercel config to disable body parsing (we use busboy instead)
+// Vercel config
 module.exports.config = {
     api: {
         bodyParser: false,
