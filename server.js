@@ -5,33 +5,41 @@ const apiRoutes = require("./backend/routes/apiRoutes");
 const fs = require("fs");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static frontend files
 app.use(express.static(path.join(__dirname, "public")));
 
-// Create required directories if they don't exist
-const dirs = ["uploads", "outputs"];
+// IMPORTANT: Use /tmp for serverless file storage
+const dirs = ["/tmp/uploads", "/tmp/outputs"];
+
 dirs.forEach((dir) => {
-  const dirPath = path.join(__dirname, dir);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 });
 
-// Routes
+// API Routes
 app.use("/api", apiRoutes);
 
-// Error Handling
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res
-    .status(500)
-    .json({ error: "Something went wrong!", details: err.message });
+// Health check route (important for debugging Vercel)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", server: "running" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("ERROR:", err);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message || "Something went wrong"
+  });
 });
+
+// ❌ DO NOT USE app.listen() ON VERCEL
+// Instead export the app as a serverless handler
+
+module.exports = app;
