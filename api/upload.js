@@ -258,10 +258,14 @@ module.exports = async (req, res) => {
         return res.send(zipBuffer);
 
     } catch (error) {
-        console.error('Processing Error:', error);
+        if (process.env.NODE_ENV !== 'production') {
+            console.error('Processing Error:', error);
+        }
         return res.status(500).json({ 
             error: 'Processing failed', 
-            details: error.message 
+            details: process.env.NODE_ENV === 'production' 
+                ? 'An error occurred during processing' 
+                : error.message 
         });
     }
 };
