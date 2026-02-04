@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Processor Pro</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Ionicons for Icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Lead Processor</h1>
+        <p class="subtitle">Upload, Clean, Filter & Chunk leads instantly.</p>
+
+        <div class="upload-area" id="drop-zone">
+            <span class="icon"><ion-icon name="cloud-upload-outline"></ion-icon></span>
+            <p id="file-label">Drag & drop excel file here <br> or click to browse</p>
+            <input type="file" id="file-input" accept=".xlsx, .csv">
+        </div>
+
+        <div class="batch-size-container">
+            <label for="batch-size">Rows per file:</label>
+            <input type="number" id="batch-size" value="1000" min="1" max="100000" placeholder="1000">
+        </div>
+
+        <button id="upload-btn" class="btn" disabled>
+            Start Processing
+        </button>
+
+        <div id="response-area">
+            <!-- Dynamic Content -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
