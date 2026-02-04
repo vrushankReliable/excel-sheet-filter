@@ -7,13 +7,6 @@ const xlsx = require('xlsx');
 const archiver = require('archiver');
 const Busboy = require('busboy');
 
-// Disable body parsing - we handle it ourselves with busboy
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
-
 /**
  * STRICT Indian Mobile Number Normalization
  */
@@ -255,4 +248,11 @@ module.exports = async (req, res) => {
             details: error.message 
         });
     }
+};
+
+// Vercel config to disable body parsing (we use busboy instead)
+module.exports.config = {
+    api: {
+        bodyParser: false,
+    },
 };
